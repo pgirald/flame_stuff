@@ -1,67 +1,38 @@
+import 'package:flame/input.dart';
+import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/parallax.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 
-class AnimationParallaxExample extends FlameGame {
+class BasicParallaxExample extends FlameGame with TapDetector {
+  late ParallaxComponent parallax;
+
   static const String description = '''
-    Shows how to use animations in a `ParallaxComponent`.
+    Shows the simplest way to use a fullscreen `ParallaxComponent`.
   ''';
+
+  final _imageNames = [
+    ParallaxImageData('parallax/bg.png'),
+    ParallaxImageData('parallax/mountain-far.png'),
+    ParallaxImageData('parallax/mountains.png'),
+    ParallaxImageData('parallax/trees.png'),
+    ParallaxImageData('parallax/foreground-trees.png'),
+    ParallaxImageData('doll.png')
+  ];
 
   @override
   Future<void> onLoad() async {
-    final cityLayer = await loadParallaxLayer(
-      ParallaxImageData('parallax/city.png'),
-    );
-
-    /*final rainLayer = await loadParallaxLayer(
-      ParallaxAnimationData(
-        'parallax/rain.png',
-        SpriteAnimationData.sequenced(
-          amount: 4,
-          stepTime: 0.1,
-          textureSize: Vector2(80, 160),
-        ),
-      ),
-      velocityMultiplier: Vector2(2, 0),
-    );*/
-
-    final rainLayer = await loadParallaxLayer(
-      ParallaxAnimationData(
-        'robot.png',
-        SpriteAnimationData.sequenced(
-          amount: 8,
-          stepTime: 0.1,
-          textureSize: Vector2(16, 18),
-        ),
-      ),
-      velocityMultiplier: Vector2(2, 0),
-    );
-
-    final cloudsLayer = await loadParallaxLayer(
-      ParallaxImageData('parallax/heavy_clouded.png'),
-      velocityMultiplier: Vector2(4, 0),
-      fill: LayerFill.none,
-      alignment: Alignment.topLeft,
-    );
-
-    final parallax = Parallax(
-      [
-        cityLayer,
-        rainLayer,
-        cloudsLayer,
-      ],
+    parallax = await loadParallaxComponent(
+      _imageNames,
       baseVelocity: Vector2(20, 0),
+      velocityMultiplierDelta: Vector2(1.8, 1.0),
     );
-
-    final parallaxComponent = ParallaxComponent(parallax: parallax);
-    add(parallaxComponent);
+    add(parallax);
   }
 }
 
 void main() {
-  final myGame = AnimationParallaxExample();
+  final myGame = BasicParallaxExample();
   runApp(
     GameWidget(
       game: myGame,
