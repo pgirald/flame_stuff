@@ -15,13 +15,25 @@ class AnimationParallaxExample extends FlameGame {
       ParallaxImageData('parallax/city.png'),
     );
 
-    final rainLayer = await loadParallaxLayer(
+    /*final rainLayer = await loadParallaxLayer(
       ParallaxAnimationData(
         'parallax/rain.png',
         SpriteAnimationData.sequenced(
           amount: 4,
           stepTime: 0.1,
           textureSize: Vector2(80, 160),
+        ),
+      ),
+      velocityMultiplier: Vector2(2, 0),
+    );*/
+
+    final rainLayer = await loadParallaxLayer(
+      ParallaxAnimationData(
+        'robot.png',
+        SpriteAnimationData.sequenced(
+          amount: 8,
+          stepTime: 0.1,
+          textureSize: Vector2(16, 18),
         ),
       ),
       velocityMultiplier: Vector2(2, 0),
