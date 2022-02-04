@@ -51,8 +51,10 @@ dev_dependencies:
 # The following section is specific to Flutter.
 flutter:
   assets:
-    - 'assets/images/parallax/'
     - 'assets/images/'
+    - 'assets/images/parallax/'
+    - 'assets/images/animations/'
+    - 'assets/images/layers/'
     - 'assets/chopper.json'
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
