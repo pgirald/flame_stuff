@@ -1,206 +1,71 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
-
 import 'package:flame/components.dart';
-import 'package:flame/effects.dart';
-import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
-import 'package:flame/geometry.dart';
 import 'package:flame/input.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../../commons/ember.dart';
-
-class FollowComponentExample extends FlameGame
-    with HasCollidables, HasTappables, HasKeyboardHandlerComponents {
+class ZoomExample extends FlameGame with ScrollDetector, ScaleDetector {
   static const String description = '''
-    Move around with W, A, S, D and notice how the camera follows the ember 
-    sprite.\n
-    If you collide with the gray squares, the camera reference is changed from
-    center to topCenter.\n
-    The gray squares can also be clicked to show how the coordinate system
-    respects the camera transformation.
+    On web: use scroll to zoom in and out.\n
+    On mobile: use scale gesture to zoom in and out.
   ''';
 
-  late MovableEmber ember;
   final Vector2 viewportResolution;
+  late SpriteComponent flame;
 
-  FollowComponentExample({
+  ZoomExample({
     required this.viewportResolution,
   });
 
   @override
   Future<void> onLoad() async {
+    final flameSprite = await loadSprite('flame.png');
+
     camera.viewport = FixedResolutionViewport(viewportResolution);
-    add(Map());
+    camera.setRelativeOffset(Anchor.center);
+    camera.speed = 100;
 
-    add(ember = MovableEmber());
-    camera.speed = 1;
-    camera.followComponent(ember, worldBounds: Map.bounds);
-
-    for (var i = 0; i < 30; i++) {
-      add(Rock(Vector2(Map.genCoord(), Map.genCoord())));
-    }
-  }
-}
-
-class MovableEmber extends Ember<FollowComponentExample>
-    with HasHitboxes, Collidable, KeyboardHandler {
-  static const double speed = 300;
-  static final TextPaint textRenderer = TextPaint(
-    style: const TextStyle(color: Colors.white70, fontSize: 12),
-  );
-
-  final Vector2 velocity = Vector2.zero();
-  late final TextComponent positionText;
-  late final Vector2 textPosition;
-
-  MovableEmber() : super();
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    positionText = TextComponent(
-      textRenderer: textRenderer,
-      position: (size / 2)..y = size.y / 2 + 30,
-      anchor: Anchor.center,
-    );
-    add(positionText);
-    addHitbox(HitboxCircle());
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt); //this line is necesary to animate the ember
-    final deltaPosition = velocity * (speed * dt);
-    position.add(deltaPosition);
-    positionText.text = '(${x.toInt()}, ${y.toInt()})';
-  }
-
-  @override
-  void onCollision(Set<Vector2> points, Collidable other) {
-    if (other is Rock) {
-      gameRef.camera.setRelativeOffset(Anchor.topCenter);
-    }
-  }
-
-  @override
-  void onCollisionEnd(Collidable other) {
-    if (other is Rock) {
-      gameRef.camera.setRelativeOffset(Anchor.center);
-    }
-  }
-
-  @override
-  bool onKeyEvent(RawKeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    final isKeyDown = event is RawKeyDownEvent;
-
-    bool handled = false;
-    if (event.logicalKey == LogicalKeyboardKey.keyA && isKeyDown) {
-      velocity.x = -1;
-      handled = true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyD && isKeyDown) {
-      velocity.x = 1;
-      handled = true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyW && isKeyDown) {
-      velocity.y = -1;
-      handled = true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyS && isKeyDown) {
-      velocity.y = 1;
-      handled = true;
-    }
-
-    if (handled) {
-      angle = -velocity.angleToSigned(Vector2(1, 0));
-      return false;
-    } else {
-      velocity
-        ..x = 0
-        ..y = 0;
-      return super.onKeyEvent(event, keysPressed);
-    }
-  }
-}
-
-class Map extends Component {
-  static const double size = 1500;
-  static const Rect bounds = Rect.fromLTWH(-size, -size, 2 * size, 2 * size);
-
-  static final Paint _paintBorder = Paint()
-    ..color = Colors.white12
-    ..strokeWidth = 10
-    ..style = PaintingStyle.stroke;
-  static final Paint _paintBg = Paint()..color = const Color(0xFF333333);
-
-  static final _rng = Random();
-
-  late final List<Paint> _paintPool;
-  late final List<Rect> _rectPool;
-
-  Map() : super(priority: 0) {
-    _paintPool = List<Paint>.generate(
-      (size / 60).ceil(),
-      (_) => PaintExtension.random(rng: _rng)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-      growable: false,
-    );
-    _rectPool = List<Rect>.generate(
-      (size / 60).ceil(),
-      (i) => Rect.fromCircle(center: Offset.zero, radius: size - i * 60),
-      growable: false,
-    );
-  }
-
-  @override
-  void render(Canvas canvas) {
-    canvas.drawRect(bounds, _paintBg);
-    canvas.drawRect(bounds, _paintBorder);
-    for (var i = 0; i < (size / 60).ceil(); i++) {
-      canvas.drawCircle(Offset.zero, size - i * 60, _paintPool[i]);
-      canvas.drawRect(_rectPool[i], _paintBorder);
-    }
-  }
-
-  static double genCoord() {
-    return -size + _rng.nextDouble() * (2 * size);
-  }
-}
-
-class Rock extends SpriteComponent
-    with HasGameRef, HasHitboxes, Collidable, Tappable {
-  Rock(Vector2 position)
-      : super(
-          position: position,
-          size: Vector2.all(50),
-          priority: 1,
-        );
-
-  @override
-  Future<void> onLoad() async {
-    sprite = await gameRef.loadSprite('nine-box.png');
-    paint = Paint()..color = Colors.white;
-    addHitbox(HitboxRectangle());
-  }
-
-  @override
-  bool onTapDown(_) {
+    final flameSize = Vector2(149, 211);
     add(
-      ScaleEffect.by(
-        Vector2.all(10),
-        EffectController(duration: 0.3),
-      ),
+      flame = SpriteComponent(
+        sprite: flameSprite,
+        size: flameSize,
+      )..anchor = Anchor.center,
     );
-    return true;
+  }
+
+  void clampZoom() {
+    camera.zoom = camera.zoom.clamp(0.05, 3.0);
+  }
+
+  static const zoomPerScrollUnit = 0.02;
+
+  @override
+  void onScroll(PointerScrollInfo info) {
+    camera.zoom += info.scrollDelta.game.y.sign * zoomPerScrollUnit;
+    clampZoom();
+  }
+
+  late double startZoom;
+
+  @override
+  void onScaleStart(_) {
+    startZoom = camera.zoom;
+  }
+
+  @override
+  void onScaleUpdate(ScaleUpdateInfo info) {
+    final currentScale = info.scale.global;
+    if (!currentScale.isIdentity()) {
+      camera.zoom = startZoom * currentScale.y;
+      clampZoom();
+    } else {
+      camera.translateBy(-info.scale.game);
+      camera.snap();
+    }
   }
 }
 
 void main() {
   //final myGame = CoordinateSystemsExample();
-  runApp(GameWidget(
-      game: FollowComponentExample(viewportResolution: Vector2(500, 500))));
+  runApp(GameWidget(game: ZoomExample(viewportResolution: Vector2(500, 500))));
 }
