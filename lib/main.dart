@@ -1,71 +1,125 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
+import 'dart:ui';
+
 import 'package:flame/components.dart';
+import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
-import 'package:flame/input.dart';
+import 'package:flame/geometry.dart';
+import 'package:flame/palette.dart';
 
-class ZoomExample extends FlameGame with ScrollDetector, ScaleDetector {
-  static const String description = '''
-    On web: use scroll to zoom in and out.\n
-    On mobile: use scale gesture to zoom in and out.
+class CollidableAnimationExample extends FlameGame with HasCollidables {
+  static const description = '''
+    In this example you can see four animated birds which are flying straight
+    along the same route until they hit either another bird or the wall, which
+    makes them turn. The birds have PolygonHitboxes which are marked with the
+    green lines and dots.
   ''';
-
-  final Vector2 viewportResolution;
-  late SpriteComponent flame;
-
-  ZoomExample({
-    required this.viewportResolution,
-  });
 
   @override
   Future<void> onLoad() async {
-    final flameSprite = await loadSprite('flame.png');
-
-    camera.viewport = FixedResolutionViewport(viewportResolution);
-    camera.setRelativeOffset(Anchor.center);
-    camera.speed = 100;
-
-    final flameSize = Vector2(149, 211);
+    add(ScreenCollidable());
+    // Top left component
     add(
-      flame = SpriteComponent(
-        sprite: flameSprite,
-        size: flameSize,
-      )..anchor = Anchor.center,
+      AnimatedComponent(Vector2.all(200), Vector2.all(100))..flipVertically(),
+    );
+    // Bottom right component
+    add(
+      AnimatedComponent(
+        Vector2(-100, -100),
+        size.clone()..sub(Vector2.all(200)),
+      ),
+    );
+    // Bottom left component
+    add(
+      AnimatedComponent(
+        Vector2(100, -100),
+        Vector2(100, size.y - 100),
+        angle: pi / 4,
+      ),
+    );
+    // Top right component
+    add(
+      AnimatedComponent(
+        Vector2(-300, 300),
+        Vector2(size.x - 100, 100),
+        angle: pi / 4,
+      )..flipVertically(),
     );
   }
+}
 
-  void clampZoom() {
-    camera.zoom = camera.zoom.clamp(0.05, 3.0);
-  }
+class AnimatedComponent extends SpriteAnimationComponent
+    with HasHitboxes, Collidable, HasGameRef {
+  final Vector2 velocity;
+  final List<Collidable> activeCollisions = [];
 
-  static const zoomPerScrollUnit = 0.02;
+  AnimatedComponent(this.velocity, Vector2 position, {double angle = -pi / 4})
+      : super(
+          position: position,
+          size: Vector2(150, 100),
+          angle: angle,
+          anchor: Anchor.center,
+        );
 
-  @override
-  void onScroll(PointerScrollInfo info) {
-    camera.zoom += info.scrollDelta.game.y.sign * zoomPerScrollUnit;
-    clampZoom();
-  }
-
-  late double startZoom;
-
-  @override
-  void onScaleStart(_) {
-    startZoom = camera.zoom;
-  }
+  late HitboxPolygon hitbox;
 
   @override
-  void onScaleUpdate(ScaleUpdateInfo info) {
-    final currentScale = info.scale.global;
-    if (!currentScale.isIdentity()) {
-      camera.zoom = startZoom * currentScale.y;
-      clampZoom();
-    } else {
-      camera.translateBy(-info.scale.game);
-      camera.snap();
-    }
+  Future<void> onLoad() async {
+    animation = await gameRef.loadSpriteAnimation(
+      'bomb_ptero.png',
+      SpriteAnimationData.sequenced(
+        amount: 4,
+        stepTime: 0.2,
+        textureSize: Vector2.all(48),
+      ),
+    );
+    hitbox = HitboxPolygon([
+      Vector2(0.0, -1.0),
+      Vector2(-1.0, -0.1),
+      Vector2(-0.2, 0.4),
+      Vector2(0.2, 0.4),
+      Vector2(1.0, -0.1),
+    ]);
+    addHitbox(hitbox);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    position += velocity * dt;
+  }
+
+  final Paint hitboxPaint = BasicPalette.green.paint()
+    ..style = PaintingStyle.stroke;
+  final Paint dotPaint = BasicPalette.red.paint()..style = PaintingStyle.stroke;
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    // This is just to clearly see the vertices in the hitboxes
+    hitbox.render(canvas, hitboxPaint);
+    hitbox
+        .localVertices()
+        .forEach((p) => canvas.drawCircle(p.toOffset(), 4, dotPaint));
+  }
+
+  @override
+  void onCollision(Set<Vector2> intersectionPoints, Collidable other) {
+    //if (!activeCollisions.contains(other)) {
+    velocity.negate();
+    flipVertically();
+    //activeCollisions.add(other);
+    //}
+  }
+
+  @override
+  void onCollisionEnd(Collidable other) {
+    //activeCollisions.remove(other);
   }
 }
 
 void main() {
-  //final myGame = CoordinateSystemsExample();
-  runApp(GameWidget(game: ZoomExample(viewportResolution: Vector2(500, 500))));
+  final game = CollidableAnimationExample();
+  runApp(GameWidget(game: game));
 }
