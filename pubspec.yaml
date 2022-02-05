@@ -52,6 +52,7 @@ dev_dependencies:
 flutter:
   assets:
     - 'assets/images/'
+    - 'assets/images/tile_maps/'
     - 'assets/images/parallax/'
     - 'assets/images/animations/'
     - 'assets/images/layers/'
