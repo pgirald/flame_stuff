@@ -1,87 +1,101 @@
+import 'package:flutter/material.dart' hide Image;
+import 'dart:ui';
+
 import 'package:flame/components.dart';
+import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
-import 'package:flame/parallax.dart';
-import 'package:flutter/material.dart' hide Image;
+import 'package:flame/sprite.dart';
 
-class StreetAnimationExample extends FlameGame with TapDetector, PanDetector {
-  late ParallaxLayer streetLayer;
-  late SpriteAnimation cockroachAnimation;
-  late SpriteAnimationComponent cockroach;
-  SpriteAnimationComponent? currentRocket;
-  final double normalSpeed = -600;
-  final double increasedSpeed = -800;
+class IsometricTileMapExample extends FlameGame with MouseMovementDetector {
+  static const String description = '''
+    Shows an example of how to use the `IsometricTileMapComponent`.\n\n
+    Move the mouse over the board to see a selector appearing on the tiles.
+  ''';
+
+  static const scale = 2.0;
+  static const srcTileSize = 32.0;
+  static const destTileSize = scale * srcTileSize;
+
+  static const halfSize = true;
+  static const tileHeight = scale * (halfSize ? 8.0 : 16.0);
+  static const suffix = halfSize ? '-short' : '';
+
+  final originColor = Paint()..color = const Color(0xFFFF00FF);
+  final originColor2 = Paint()..color = const Color(0xFFAA55FF);
+
+  late IsometricTileMapComponent base;
+  late Selector selector;
+
+  IsometricTileMapExample();
 
   @override
-  Future<void>? onLoad() async {
-    // TODO: implement onLoad
-    await super.onLoad();
-    cockroachAnimation = await loadSpriteAnimation(
-        'cockroach.png',
-        SpriteAnimationData.sequenced(
-            amount: 4, stepTime: 0.1, textureSize: Vector2(47, 54)));
-    cockroach = SpriteAnimationComponent(
-        animation: cockroachAnimation,
-        position: Vector2(size.x / 2 - 3, size.y - 10),
-        anchor: Anchor.bottomCenter,
-        size: Vector2(188, 196));
-    streetLayer = await loadParallaxLayer(ParallaxImageData('street.png'),
-        repeat: ImageRepeat.repeatY,
-        velocityMultiplier: Vector2(0, normalSpeed),
-        alignment: Alignment.center);
-    final parallaxComponent = ParallaxComponent(
-        parallax: Parallax([streetLayer], baseVelocity: Vector2(0, 1)),
-        scale: Vector2(1.5, 1.5),
-        anchor: Anchor.center);
-    parallaxComponent.position = size / 2;
-    add(parallaxComponent);
-    add(cockroach);
+  Future<void> onLoad() async {
+    final tilesetImage = await images.load('tile_maps/tiles$suffix.png');
+    final tileset = SpriteSheet(
+      image: tilesetImage,
+      srcSize: Vector2.all(srcTileSize),
+    );
+    final matrix = [
+      [3, 1, 1, 1, 0, 0],
+      [-1, 1, 2, 1, 0, 0],
+      [-1, 0, 1, 1, 0, 0],
+      [-1, 1, 1, 1, 0, 0],
+      [1, 1, 1, 1, 0, 2],
+      [1, 3, 3, 3, 0, 2],
+    ];
+    add(
+      base = IsometricTileMapComponent(tileset, matrix,
+          destTileSize: Vector2.all(destTileSize),
+          tileHeight: tileHeight,
+          anchor: Anchor.center)
+        ..position = size / 2,
+    );
+
+    final selectorImage = await images.load('tile_maps/selector$suffix.png');
+    base.add(selector = Selector(destTileSize,
+        selectorImage)); // This is necesary cause the selector position has to be relative to the isometric tile map
   }
 
   @override
-  void update(double dt) {
-    // TODO: implement update
-    super.update(dt);
-    if (currentRocket != null) {
-      currentRocket!.position.y -= 8;
-      if (currentRocket!.position.y < 0) {
-        remove(currentRocket!);
-        currentRocket = null;
-      }
-    }
+  void render(Canvas canvas) {
+    super.render(canvas);
+    canvas.renderPoint(base.position, size: 5, paint: originColor);
+    canvas.renderPoint(
+      base.position.clone()..y -= tileHeight,
+      size: 5,
+      paint: originColor2,
+    );
   }
 
   @override
-  void onTapDown(TapDownInfo info) async {
-    // TODO: implement onTapDown
-    super.onTapDown(info);
-    if (currentRocket != null) {
+  void onMouseMove(PointerHoverInfo info) {
+    final screenPosition = info.eventPosition.game;
+    final block = base.getBlock(screenPosition);
+    selector.show = base.containsBlock(block);
+    selector.position.setFrom(base.getBlockRenderPosition(block));
+  }
+}
+
+class Selector extends SpriteComponent {
+  bool show = true;
+
+  Selector(double s, Image image)
+      : super(
+            sprite: Sprite(image, srcSize: Vector2.all(32.0)),
+            size: Vector2.all(s));
+
+  @override
+  void render(Canvas canvas) {
+    if (!show) {
       return;
     }
-    final rocketAnimation = await loadSpriteAnimation(
-        'rocket.png',
-        SpriteAnimationData.sequenced(
-            amount: 4, stepTime: 0.1, textureSize: Vector2(48, 416)));
-    currentRocket = SpriteAnimationComponent(
-        animation: rocketAnimation,
-        size: Vector2(24, 208),
-        anchor: Anchor.bottomCenter);
 
-    currentRocket!.position =
-        Vector2(cockroach.position.x, cockroach.topLeftPosition.y);
-    add(currentRocket!);
-  }
-
-  @override
-  void onTapUp(TapUpInfo info) {
-    // TODO: implement onTapUp
-    super.onTapUp(info);
-    streetLayer.velocityMultiplier.y = normalSpeed;
-    cockroachAnimation.stepTime = 0.1;
+    super.render(canvas);
   }
 }
 
 void main() {
-  final game = StreetAnimationExample();
+  final game = IsometricTileMapExample();
   runApp(GameWidget(game: game));
 }
